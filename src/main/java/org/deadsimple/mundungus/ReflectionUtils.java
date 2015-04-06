@@ -16,7 +16,8 @@ import com.mongodb.BasicDBObject;
 class ReflectionUtils {
    static boolean isGetter(final Method m) {
       final String methodName = m.getName();
-      return (methodName.startsWith("get") || methodName.startsWith("is")) && ! methodName.equals("getClass");
+      return (methodName.startsWith("get") || methodName.startsWith("is"))
+              && ! methodName.equals("getClass") && ! m.getDeclaringClass().getName().equals("java.lang.Enum");
    }
 
    static boolean isSetter(final Method m) {
@@ -57,7 +58,10 @@ class ReflectionUtils {
 				   }
 			   } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
 			       md.invoke(newInstance, dbo.get(fieldName));
-			   } else {
+			   } else if (parameterClazz.isEnum()) {
+                   final BasicDBObject enumDBO = (BasicDBObject)dbo.get(fieldName);
+                   md.invoke(newInstance, Enum.valueOf((Class<Enum>)parameterClazz, (String)enumDBO.get("value")));
+               } else {
 			       if (dbo.get(fieldName) instanceof BasicDBObject) {
 			           final Object obj = mapDBOToJavaObject(parameterClazz, (BasicDBObject)dbo.get(fieldName));
 			           md.invoke(newInstance, obj);
@@ -125,15 +129,17 @@ class ReflectionUtils {
 			   if (val instanceof List) {
 				   final BasicDBList listDBO = ReflectionUtils.mapJavaListToDBList((List)val);
 				   dbo.put(fieldName, listDBO);
-			   } /*else if (fieldName.equals(EntityManager.ID_FIELD_NAME)) {
-			       if (val != null) {
-				      dbo.put(fieldName, new ObjectId((String)val));
-			       }
-			   }*/ else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
+			   } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
                    if (val != null) {
                        dbo.put(fieldName, val);
                    }
-			   } else if (val != null) {
+			   } else if (val instanceof java.lang.Enum) {
+                   Enum e = (Enum)val;
+                   BasicDBObject enumDBO = new BasicDBObject();
+                   enumDBO.put("ordinal", e.ordinal());
+                   enumDBO.put("value", e.name());
+                   dbo.put(fieldName, enumDBO);
+               } else if (val != null) {
                    dbo.put(fieldName, mapJavaObjectToDBO(val));
                }
 		   }

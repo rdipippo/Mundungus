@@ -2,6 +2,9 @@ package org.deadsimple.mundungus.collection;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.annotations.Collection;
@@ -19,6 +22,8 @@ public class TestCollection {
     ObjectId reference;
     
     InnerTestCollection collection;
+
+    TestEnum enumeratedValue = TestEnum.VALUE1;
 
     public ObjectId getId() {
         return this.id;
@@ -59,7 +64,42 @@ public class TestCollection {
     public void setReference(final ObjectId reference) {
         this.reference = reference;
     }
-    
+
+    public TestEnum getEnumeratedValue() {
+        return enumeratedValue;
+    }
+
+    public void setEnumeratedValue(TestEnum enumeratedValue) {
+        this.enumeratedValue = enumeratedValue;
+    }
+
+    public static BasicDBObject generateDBO() {
+        final BasicDBObject dbo = new BasicDBObject();
+        dbo.put("testField", "test");
+
+        final BasicDBList dbl = new BasicDBList();
+        dbl.add("test1");
+        dbl.add("test2");
+
+        dbo.put("testListField", dbl);
+        dbo.put("reference", new ObjectId("ffffffffffffffffffffffff"));
+
+        BasicDBObject enumDBO = new BasicDBObject();
+        enumDBO.put("ordinal", 0);
+        enumDBO.put("value", "VALUE1");
+        dbo.put("enumeratedValue", enumDBO);
+
+        final BasicDBObject innerCollection = new BasicDBObject();
+        innerCollection.put("testField", "innerTest");
+        innerCollection.put("testListField", dbl);
+        innerCollection.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+
+        dbo.put("collection", innerCollection);
+        dbo.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+
+        return dbo;
+    }
+
     public static TestCollection generateTestCollection() {
         final TestCollection tc = new TestCollection();
         tc.setTestField("test");

@@ -5,6 +5,7 @@ import java.util.List;
 import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.collection.InnerTestCollection;
 import org.deadsimple.mundungus.collection.TestCollection;
+import org.deadsimple.mundungus.collection.TestEnum;
 import org.junit.Assert;
 import org.junit.Test;
 import com.mongodb.BasicDBList;
@@ -21,6 +22,11 @@ public class ReflectionUtilsTest {
         Assert.assertEquals(tc.getTestListField(), dbo.get("testListField"));
         Assert.assertNull(dbo.get("_id"));
         Assert.assertEquals("ffffffffffffffffffffffff", ((ObjectId)dbo.get("reference")).toString());
+
+        Assert.assertNotNull(dbo.get("enumeratedValue"));
+        BasicDBObject enumDBO = (BasicDBObject)dbo.get("enumeratedValue");
+        Assert.assertEquals(Integer.valueOf(tc.getEnumeratedValue().ordinal()), enumDBO.get("ordinal"));
+        Assert.assertEquals(tc.getEnumeratedValue().name(), (String)enumDBO.get("value"));
         
         final BasicDBObject innerDbo = ReflectionUtils.mapJavaObjectToDBO(tc.getCollection());
         Assert.assertEquals(innerDbo, dbo.get("collection"));
@@ -28,28 +34,12 @@ public class ReflectionUtilsTest {
     
     @Test
     public void testMapToJava() throws Exception {
-        final BasicDBObject dbo = new BasicDBObject();
-        dbo.put("testField", "test");
-        
-        final BasicDBList dbl = new BasicDBList();
-        dbl.add("test1");
-        dbl.add("test2");
-        
-        dbo.put("testListField", dbl);
-        dbo.put("reference", new ObjectId("ffffffffffffffffffffffff"));
-        
-        final BasicDBObject innerCollection = new BasicDBObject();
-        innerCollection.put("testField", "innerTest");
-        innerCollection.put("testListField", dbl);
-        innerCollection.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
-        
-        dbo.put("collection", innerCollection);
-        dbo.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
-        
+        BasicDBObject dbo = TestCollection.generateDBO();
         final TestCollection tc = ReflectionUtils.mapDBOToJavaObject(TestCollection.class, dbo);
         Assert.assertEquals("test", tc.getTestField());
         Assert.assertEquals("abcdeabcdeabcdeabcdeabcd", tc.getId().toString());
         Assert.assertEquals("ffffffffffffffffffffffff", tc.getReference().toString());
+        Assert.assertEquals(TestEnum.VALUE1, tc.getEnumeratedValue());
         
         final InnerTestCollection itc = tc.getCollection();
         Assert.assertEquals("abcdeabcdeabcdeabcdeabcd", itc.getId().toString());
