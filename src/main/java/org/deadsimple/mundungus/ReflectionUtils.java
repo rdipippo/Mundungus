@@ -57,10 +57,13 @@ class ReflectionUtils {
 					   md.invoke(newInstance, mapDBListToJavaList(a.value(), (BasicDBList)dbo.get(fieldName)));
 				   }
 			   } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
+
 			       md.invoke(newInstance, dbo.get(fieldName));
 			   } else if (parameterClazz.isEnum()) {
                    final BasicDBObject enumDBO = (BasicDBObject)dbo.get(fieldName);
-                   md.invoke(newInstance, Enum.valueOf((Class<Enum>)parameterClazz, (String)enumDBO.get("value")));
+                   if (enumDBO != null && enumDBO.get("value") != null) {
+                       md.invoke(newInstance, Enum.valueOf((Class<Enum>) parameterClazz, (String) enumDBO.get("value")));
+                   }
                } else {
 			       if (dbo.get(fieldName) instanceof BasicDBObject) {
 			           final Object obj = mapDBOToJavaObject(parameterClazz, (BasicDBObject)dbo.get(fieldName));

@@ -25,6 +25,8 @@ public class TestCollection {
 
     TestEnum enumeratedValue = TestEnum.VALUE1;
 
+    Integer objIntField;
+
     public ObjectId getId() {
         return this.id;
     }
@@ -73,6 +75,14 @@ public class TestCollection {
         this.enumeratedValue = enumeratedValue;
     }
 
+    public Integer getObjIntField() {
+        return objIntField;
+    }
+
+    public void setObjIntField(Integer objIntField) {
+        this.objIntField = objIntField;
+    }
+
     public static BasicDBObject generateDBO() {
         final BasicDBObject dbo = new BasicDBObject();
         dbo.put("testField", "test");
@@ -83,6 +93,7 @@ public class TestCollection {
 
         dbo.put("testListField", dbl);
         dbo.put("reference", new ObjectId("ffffffffffffffffffffffff"));
+        dbo.put("objIntField", Integer.valueOf(6));
 
         BasicDBObject enumDBO = new BasicDBObject();
         enumDBO.put("ordinal", 0);
@@ -103,6 +114,7 @@ public class TestCollection {
     public static TestCollection generateTestCollection() {
         final TestCollection tc = new TestCollection();
         tc.setTestField("test");
+        tc.setObjIntField(6);
         
         final List<String> testList = new ArrayList<String>();
         testList.add("test1");
