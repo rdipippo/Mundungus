@@ -120,10 +120,6 @@ public class EntityManager {
             dbo = ReflectionUtils.mapJavaObjectToDBO(searchInstance);
         } catch (final IllegalArgumentException e) {
             throw new MappingException(e);
-        } catch (final IllegalAccessException e) {
-            throw new MappingException(e);
-        } catch (final InvocationTargetException e) {
-            throw new MappingException(e);
         }
 
 		DBCursor cursor = null;
@@ -224,14 +220,8 @@ public class EntityManager {
 	    final Collection annotation = clazz.getAnnotation(Collection.class);
 	    
 	    if (annotation != null) {
-	        try {
-               final BasicDBObject objectToRemove = ReflectionUtils.mapJavaObjectToDBO(document);
-               this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz)).remove(objectToRemove);
-	        } catch (final IllegalAccessException e) {
-	            throw new MappingException(e);
-	        } catch (final InvocationTargetException e) {
-	            throw new MappingException(e);
-	        }
+            final BasicDBObject objectToRemove = ReflectionUtils.mapJavaObjectToDBO(document);
+            this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz)).remove(objectToRemove);
         }
 	}
 	

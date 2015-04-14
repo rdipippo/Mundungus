@@ -15,18 +15,8 @@ public class EntityCursor<T> {
       this.clazz = clazzArg;
    }
 
-   public T nextEntity() {
-       try {
-           return ReflectionUtils.mapDBOToJavaObject(this.clazz, (BasicDBObject) this.cursor.next());
-       } catch (final InvocationTargetException e) {
-           throw new MappingException(e);
-       } catch (final IllegalAccessException e) {
-           throw new MappingException(e);
-       } catch (final NoSuchFieldException e) {
-           throw new MappingException(e);
-       } catch (final InstantiationException e) {
-           throw new MappingException(e);
-       }
+   public T nextEntity() throws MappingException {
+       return ReflectionUtils.mapDBOToJavaObject(this.clazz, (BasicDBObject) this.cursor.next());
    }
    
    public boolean hasNext() {

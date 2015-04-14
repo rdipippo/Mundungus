@@ -1,20 +1,26 @@
 package org.deadsimple.mundungus;
 
-import java.io.IOException;
-import java.net.UnknownHostException;
 import com.mongodb.ServerAddress;
+import de.flapdoodle.embed.mongo.Command;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
 import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.config.RuntimeConfigBuilder;
 import de.flapdoodle.embed.mongo.distribution.IFeatureAwareVersion;
 import de.flapdoodle.embed.mongo.distribution.Versions;
+import de.flapdoodle.embed.process.config.IRuntimeConfig;
+import de.flapdoodle.embed.process.config.io.ProcessOutput;
 import de.flapdoodle.embed.process.distribution.GenericVersion;
 import de.flapdoodle.embed.process.runtime.Network;
 
+import java.io.IOException;
+import java.net.UnknownHostException;
+import java.util.logging.Logger;
+
 public class EmbeddedMongo {
-    final static MongodStarter starter = MongodStarter.getDefaultInstance();
+    static MongodStarter starter = null;
     
     final static int port = ServerAddress.defaultPort();
     
@@ -24,6 +30,15 @@ public class EmbeddedMongo {
     
     public static void start() {
         try {
+            Logger logger = Logger.getLogger("org.deadsimple.mundungus.EmbeddedMongo");
+
+            IRuntimeConfig runtimeConfig = new RuntimeConfigBuilder()
+                    .defaultsWithLogger(Command.MongoD, logger)
+                    .processOutput(ProcessOutput.getDefaultInstanceSilent())
+                    .build();
+
+            starter = MongodStarter.getInstance(runtimeConfig);
+
             final IMongodConfig mongodConfig = new MongodConfigBuilder()
                .version(mongoVersion)
                .net(new Net(port, Network.localhostIsIPv6()))
