@@ -1,20 +1,18 @@
 package org.deadsimple.mundungus.collection;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.annotations.Collection;
-import org.deadsimple.mundungus.annotations.SubCollection;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Collection
 public class TestCollection {
     String testField;
     
-    @SubCollection(String.class)
     List<String> testListField;
     
     ObjectId id;
@@ -23,7 +21,9 @@ public class TestCollection {
     
     InnerTestCollection collection;
 
-    TestEnum enumeratedValue = TestEnum.VALUE1;
+    List<InnerTestCollection> complexListField;
+
+    TestEnum enumeratedValue;
 
     Integer objIntField;
 
@@ -83,6 +83,14 @@ public class TestCollection {
         this.objIntField = objIntField;
     }
 
+    public List<InnerTestCollection> getComplexListField() {
+        return complexListField;
+    }
+
+    public void setComplexListField(List<InnerTestCollection> complexListField) {
+        this.complexListField = complexListField;
+    }
+
     public static BasicDBObject generateDBO() {
         final BasicDBObject dbo = new BasicDBObject();
         dbo.put("testField", "test");
@@ -104,6 +112,14 @@ public class TestCollection {
         innerCollection.put("testField", "innerTest");
         innerCollection.put("testListField", dbl);
         innerCollection.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+
+        BasicDBObject innerCollectionListMember = new BasicDBObject(innerCollection);
+        innerCollectionListMember.put("_type", InnerTestCollection.class.getName());
+
+        BasicDBList complexList = new BasicDBList();
+        complexList.add(innerCollectionListMember);
+
+        dbo.put("complexListField", complexList);
 
         dbo.put("collection", innerCollection);
         dbo.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
@@ -128,8 +144,13 @@ public class TestCollection {
         itc.setTestField(tc.getTestField());
         itc.setTestListField(tc.getTestListField());
         itc.setId(new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+
+        tc.setEnumeratedValue(TestEnum.VALUE1);
         
         tc.setCollection(itc);
+        List<InnerTestCollection> itcList = new ArrayList<InnerTestCollection>();
+        itcList.add(itc);
+        tc.setComplexListField(itcList);
         return tc;
     }
     

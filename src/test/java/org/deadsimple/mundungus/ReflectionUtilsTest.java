@@ -31,6 +31,10 @@ public class ReflectionUtilsTest {
         Assert.assertEquals(Integer.valueOf(6), (Integer)dbo.get("objIntField"));
         final BasicDBObject innerDbo = ReflectionUtils.mapJavaObjectToDBO(tc.getCollection());
         Assert.assertEquals(innerDbo, (BasicDBObject)dbo.get("collection"));
+
+        BasicDBList complexList = (BasicDBList)dbo.get("complexListField");
+        Assert.assertEquals(1, complexList.size());
+        //Assert.assertEquals(innerDbo, (BasicDBObject)complexList.get(0));
     }
     
     @Test
@@ -66,6 +70,7 @@ public class ReflectionUtilsTest {
         Assert.assertNull(testCollection.getObjIntField());
         Assert.assertNull(testCollection.getTestListField());
         Assert.assertNull(testCollection.getCollection());
+        Assert.assertNull(testCollection.getComplexListField());
     }
 
     @Test

@@ -10,8 +10,7 @@ import java.util.List;
 @Collection
 public class InnerTestCollection {
     String testField;
-    
-    @SubCollection(String.class)
+
     List<String> testListField;
     
     ObjectId id;

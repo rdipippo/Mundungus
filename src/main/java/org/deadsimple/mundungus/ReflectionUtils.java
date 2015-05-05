@@ -55,10 +55,7 @@ class ReflectionUtils {
                        final Object listObj = dbo.get(fieldName);
 
                        if (listObj != null) {
-                           final Field field = clazz.getDeclaredField(fieldName);
-                           field.setAccessible(true);
-                           final SubCollection a = field.getAnnotation(SubCollection.class);
-                           md.invoke(newInstance, mapDBListToJavaList(a.value(), (BasicDBList) dbo.get(fieldName)));
+                           md.invoke(newInstance, mapDBListToJavaList((BasicDBList) dbo.get(fieldName)));
                        }
                    } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
 
@@ -92,20 +89,24 @@ class ReflectionUtils {
            throw new MappingException(clazz.getName(), e);
        } catch (InvocationTargetException e) {
            throw new MappingException(clazz.getName(), fieldName, e);
-       } catch (NoSuchFieldException e) {
-           throw new MappingException(clazz.getName(), fieldName, e);
        } catch (IllegalArgumentException e) {
            throw new MappingException(clazz.getName(), fieldName, e);
        }
    }
    
-   static List mapDBListToJavaList(final Class clazz, final BasicDBList list) throws MappingException {
+   static List mapDBListToJavaList(final BasicDBList list) throws MappingException {
 	   final List retList = new ArrayList();
 	   final Iterator iter = list.iterator();
 	   while(iter.hasNext()) {
 		   final Object obj = iter.next();
 		   if (obj instanceof BasicDBObject) {
-			   retList.add(mapDBOToJavaObject(clazz, (BasicDBObject)obj));
+               String type = (String) ((BasicDBObject) obj).get("_type");
+               try {
+                   Class<?> aClass = Class.forName(type);
+                   retList.add(mapDBOToJavaObject(aClass, (BasicDBObject)obj));
+               } catch (ClassNotFoundException e) {
+                   e.printStackTrace();
+               }
 		   } else {
 		       retList.add(obj.toString());
 		   }
@@ -126,7 +127,9 @@ class ReflectionUtils {
            if (ClassUtils.isPrimitiveOrWrapper(clazz) || clazz.equals(String.class) || clazz.equals(ObjectId.class)) {
                dbo.add(obj);
            } else {
-               dbo.add(mapJavaObjectToDBO(obj));
+               BasicDBObject listMemberDBO = mapJavaObjectToDBO(obj);
+               listMemberDBO.put("_type", obj.getClass().getName());
+               dbo.add(listMemberDBO);
            }
        }
 

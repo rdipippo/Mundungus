@@ -73,6 +73,11 @@ public class EntityManager {
 	public ObjectId persist(final Object obj) {
 	    final BasicDBObject dbo;
 
+        final Collection annotation = obj.getClass().getAnnotation(Collection.class);
+        if (annotation == null) {
+            throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", obj.getClass().getSimpleName()));
+        }
+
 	    try {
             Method idSetter = obj.getClass().getMethod("setId", ObjectId.class);
             idSetter.invoke(obj, new ObjectId());
