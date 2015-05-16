@@ -78,9 +78,15 @@ public class EntityManager {
             throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", obj.getClass().getSimpleName()));
         }
 
-	    try {
-            Method idSetter = obj.getClass().getMethod("setId", ObjectId.class);
-            idSetter.invoke(obj, new ObjectId());
+        try {
+            Method idGetter = obj.getClass().getMethod("getId");
+            ObjectId id = (ObjectId)idGetter.invoke(obj);
+
+            if (id == null) {
+                Method idSetter = obj.getClass().getMethod("setId", ObjectId.class);
+                idSetter.invoke(obj, new ObjectId());
+            }
+
 	        dbo = ReflectionUtils.mapJavaObjectToDBO(obj);
 	    } catch(final IllegalAccessException e) {
 	        throw new MappingException(e);

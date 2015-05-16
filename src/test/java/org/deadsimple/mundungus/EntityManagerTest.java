@@ -2,6 +2,7 @@ package org.deadsimple.mundungus;
 
 import java.util.Map;
 import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.collection.InnerTestCollection;
 import org.deadsimple.mundungus.collection.TestCollection;
 import org.junit.AfterClass;
@@ -59,7 +60,10 @@ public class EntityManagerTest {
    @Test
    public void testPersist() {
        final TestCollection tc = TestCollection.generateTestCollection();
-       this.em.persist(tc);
+       ObjectId persistedId = this.em.persist(tc);
+
+       Assert.assertNotNull(persistedId);
+       Assert.assertEquals(persistedId, tc.getId());
        
        final TestCollection finder = new TestCollection();
        finder.setTestField(tc.getTestField());
@@ -72,6 +76,11 @@ public class EntityManagerTest {
                .append(fetchedTc.getTestField(), tc.getTestField())
                .append(fetchedTc.getCollection(), tc.getCollection())
             .isEquals());
+
+       final TestCollection tc2 = TestCollection.generateTestCollection();
+       this.em.persist(tc2);
+
+       Assert.assertNotEquals(fetchedTc.getId(), tc2.getId());
    }
    
    @Test
@@ -97,6 +106,7 @@ public class EntityManagerTest {
                                             .append(fetchedTc.getCollection(), tc.getCollection())
                                          .isEquals());
        Assert.assertEquals("updated value", fetchedTc.getTestField());
+       Assert.assertEquals(tc.getId(), fetchedTc.getId());
    }
    
    @Test

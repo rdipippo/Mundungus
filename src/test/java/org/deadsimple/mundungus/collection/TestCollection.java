@@ -5,6 +5,7 @@ import com.mongodb.BasicDBObject;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.annotations.Collection;
+import org.deadsimple.mundungus.annotations.Transient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,9 @@ public class TestCollection {
     TestEnum enumeratedValue;
 
     Integer objIntField;
+
+    @Transient
+    String transientField;
 
     public ObjectId getId() {
         return this.id;
@@ -87,6 +91,24 @@ public class TestCollection {
         return complexListField;
     }
 
+    public String getTransientField() {
+        return transientField;
+    }
+
+    @Transient
+    public String getNothing() {
+        return "nothing";
+    }
+
+    @Transient
+    public void setNothing(String nothing) {
+
+    }
+
+    public void setTransientField(String transientField) {
+        this.transientField = transientField;
+    }
+
     public void setComplexListField(List<InnerTestCollection> complexListField) {
         this.complexListField = complexListField;
     }
@@ -138,8 +160,7 @@ public class TestCollection {
         tc.setTestListField(testList);
         
         tc.setReference(new ObjectId("ffffffffffffffffffffffff"));
-        //tc.setId("abcdeabcdeabcdeabcdeabcd");
-        
+
         final InnerTestCollection itc = new InnerTestCollection();
         itc.setTestField(tc.getTestField());
         itc.setTestListField(tc.getTestListField());
@@ -151,6 +172,8 @@ public class TestCollection {
         List<InnerTestCollection> itcList = new ArrayList<InnerTestCollection>();
         itcList.add(itc);
         tc.setComplexListField(itcList);
+
+        tc.setTransientField("This field should not be stored in the database.");
         return tc;
     }
     

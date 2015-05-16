@@ -18,23 +18,28 @@ public class ReflectionUtilsTest {
         final TestCollection tc = TestCollection.generateTestCollection();
         
         final BasicDBObject dbo = ReflectionUtils.mapJavaObjectToDBO(tc);
-        Assert.assertEquals("test", (String)dbo.get("testField"));
-        
-        Assert.assertEquals(tc.getTestListField(), (List<String>)dbo.get("testListField"));
+        Assert.assertEquals("test", (String) dbo.get("testField"));
+        Assert.assertEquals(tc.getTestListField(), (List<String>) dbo.get("testListField"));
         Assert.assertNull(dbo.get("_id"));
-        Assert.assertEquals("ffffffffffffffffffffffff", ((ObjectId)dbo.get("reference")).toString());
-
+        Assert.assertEquals("ffffffffffffffffffffffff", ((ObjectId) dbo.get("reference")).toString());
         Assert.assertNotNull(dbo.get("enumeratedValue"));
+
         BasicDBObject enumDBO = (BasicDBObject)dbo.get("enumeratedValue");
         Assert.assertEquals(Integer.valueOf(tc.getEnumeratedValue().ordinal()), (Integer)enumDBO.get("ordinal"));
         Assert.assertEquals(tc.getEnumeratedValue().name(), (String)enumDBO.get("value"));
         Assert.assertEquals(Integer.valueOf(6), (Integer)dbo.get("objIntField"));
+
         final BasicDBObject innerDbo = ReflectionUtils.mapJavaObjectToDBO(tc.getCollection());
         Assert.assertEquals(innerDbo, (BasicDBObject)dbo.get("collection"));
 
         BasicDBList complexList = (BasicDBList)dbo.get("complexListField");
         Assert.assertEquals(1, complexList.size());
-        //Assert.assertEquals(innerDbo, (BasicDBObject)complexList.get(0));
+        Assert.assertEquals(innerDbo.get("_id"), ((BasicDBObject)complexList.get(0)).get("_id"));
+        Assert.assertEquals(innerDbo.get("testListField"), ((BasicDBObject)complexList.get(0)).get("testListField"));
+        Assert.assertEquals(innerDbo.get("testField"), ((BasicDBObject)complexList.get(0)).get("testField"));
+        Assert.assertEquals("org.deadsimple.mundungus.collection.InnerTestCollection",  ((BasicDBObject)complexList.get(0)).get("_type"));
+
+        Assert.assertNull(dbo.get("transientField"));
     }
     
     @Test
