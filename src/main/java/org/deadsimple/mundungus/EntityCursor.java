@@ -1,6 +1,8 @@
 package org.deadsimple.mundungus;
 
 import java.lang.reflect.InvocationTargetException;
+
+import javassist.util.proxy.ProxyObject;
 import org.deadsimple.mundungus.exception.MappingException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.Cursor;
@@ -12,7 +14,12 @@ public class EntityCursor<T> {
         
    public EntityCursor(final Cursor cursorArg, final Class<T> clazzArg) {
       this.cursor = cursorArg;
-      this.clazz = clazzArg;
+
+      if (ProxyObject.class.isAssignableFrom(clazzArg)) {
+         this.clazz = (Class<T>)clazzArg.getSuperclass();
+      } else {
+         this.clazz = clazzArg;
+      }
    }
 
    public T nextEntity() throws MappingException {

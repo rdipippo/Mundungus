@@ -1,22 +1,34 @@
 package org.deadsimple.mundungus;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.bytecode.AnnotationsAttribute;
+import javassist.bytecode.ClassFile;
+import javassist.bytecode.ConstPool;
+import javassist.bytecode.annotation.Annotation;
+import javassist.bytecode.annotation.AnnotationMemberValue;
+import javassist.bytecode.annotation.MemberValue;
+import javassist.bytecode.annotation.StringMemberValue;
 import org.bson.types.ObjectId;
+import org.deadsimple.mundungus.annotations.Collection;
 import org.deadsimple.mundungus.collection.InnerTestCollection;
 import org.deadsimple.mundungus.collection.TestCollection;
 import org.deadsimple.mundungus.collection.TestEnum;
 import org.junit.Assert;
 import org.junit.Test;
-import com.mongodb.BasicDBList;
-import com.mongodb.BasicDBObject;
 
-public class ReflectionUtilsTest {
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ReflectionUtilsTest extends MongoTest {
     @Test
     public void testMapToDBO() throws Exception {
         final TestCollection tc = TestCollection.generateTestCollection();
-        
+
         final BasicDBObject dbo = ReflectionUtils.mapJavaObjectToDBO(tc);
         Assert.assertEquals("test", (String) dbo.get("testField"));
         Assert.assertEquals(tc.getTestListField(), (List<String>) dbo.get("testListField"));
@@ -62,6 +74,14 @@ public class ReflectionUtilsTest {
 
         Assert.assertEquals(testList, itc.getTestListField());
         Assert.assertEquals(testList, tc.getTestListField());
+
+        // test that proxyCollection was eagerly loaded (field should not be null)
+        // and that lazyProxyCollection is lazily loaded (field should be null but getter should return value).
+        Assert.assertNotNull(tc.proxyCollection);
+        Assert.assertEquals("proxy!", tc.getProxyCollection().getTestField());
+        Assert.assertNull(tc.lazyProxyCollection);
+        Assert.assertEquals("lazy proxy!", tc.getLazyProxyCollection().getTestField());
+        Assert.assertEquals("lazy proxy!", tc.getLazyProxyCollection().getTestField());
     }
 
     @Test
@@ -84,5 +104,32 @@ public class ReflectionUtilsTest {
         BasicDBObject bdo = ReflectionUtils.mapJavaObjectToDBO(tc);
         Assert.assertNotNull(bdo);
         Assert.assertEquals(0, bdo.size());
+    }
+
+    @Test
+    public void testGetGetter() throws Exception {
+        Method setCollection = TestCollection.class.getMethod("setCollection", InnerTestCollection.class);
+        Method getter = ReflectionUtils.getGetter(setCollection);
+        Assert.assertEquals("getCollection", getter.getName());
+    }
+
+    @Test
+    public void testMapClassNameToCollectionName() throws Exception {
+        ClassPool cp = ClassPool.getDefault();
+        CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection");
+        ClassFile classFile = ctClass.getClassFile();
+        ConstPool constpool = classFile.getConstPool();
+        AnnotationsAttribute attribute = new AnnotationsAttribute(classFile.getConstPool(), AnnotationsAttribute.visibleTag);
+        final Annotation annotation = new Annotation("org.deadsimple.mundungus.annotations.Collection", constpool);
+        annotation.addMemberValue("name", new StringMemberValue("proxy!", constpool));
+        attribute.addAnnotation(annotation);
+        classFile.addAttribute(attribute);
+        final Class aClass = cp.toClass(ctClass);
+
+        final String s = ReflectionUtils.mapClassNameToCollectionName(aClass);
+        Assert.assertEquals("proxy!", s);
+
+        final String s2 = ReflectionUtils.mapClassNameToCollectionName(TestCollection.class);
+        Assert.assertEquals("TestCollection", s2);
     }
 }

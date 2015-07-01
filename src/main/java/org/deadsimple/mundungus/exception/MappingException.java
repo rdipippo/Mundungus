@@ -9,11 +9,15 @@ public class MappingException extends RuntimeException {
         super(e);
     }
 
-    public MappingException(String className, String fieldName, Exception e) {
-        super("Error mapping field: " + fieldName + " on object type " + className, e);
+    public MappingException(String fieldName, Class clazz, Exception e) {
+        super("Error mapping field: " + fieldName + " on object type " + clazz.getName(), e);
     }
 
-    public MappingException(String className, Exception e) {
-        super("Error instantiating class: " + className, e);
+    public MappingException(Class clazz, Exception e) {
+        super("Error instantiating class: " + clazz.getName(), e);
+    }
+
+    public MappingException(String message, Exception e) {
+        super(message, e);
     }
 }

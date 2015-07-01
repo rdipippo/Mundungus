@@ -1,5 +1,20 @@
 package org.deadsimple.mundungus;
 
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import javassist.util.proxy.MethodHandler;
+import javassist.util.proxy.ProxyFactory;
+import javassist.util.proxy.ProxyObject;
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Element;
+import org.apache.commons.lang3.ClassUtils;
+import org.bson.types.ObjectId;
+import org.deadsimple.mundungus.annotations.Collection;
+import org.deadsimple.mundungus.annotations.LoadType;
+import org.deadsimple.mundungus.annotations.Reference;
+import org.deadsimple.mundungus.annotations.Transient;
+import org.deadsimple.mundungus.exception.MappingException;
+
 import java.beans.Introspector;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -7,27 +22,26 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.lang3.ClassUtils;
-import org.bson.types.ObjectId;
-import org.deadsimple.mundungus.annotations.SubCollection;
-import com.mongodb.BasicDBList;
-import com.mongodb.BasicDBObject;
-import org.deadsimple.mundungus.annotations.Transient;
-import org.deadsimple.mundungus.exception.MappingException;
 
 class ReflectionUtils {
    private static final String TYPE_FIELD = "_type";
+
+   private static final CacheManager cm = CacheManager.getInstance();
+
+   static {
+       cm.addCache("ObjectIds");
+   }
 
    static boolean isGetter(final Method m) {
        final String methodName = m.getName();
        return (methodName.startsWith("get") || methodName.startsWith("is"))
                && ! isTransient(m)
-               && !methodName.equals("getClass") && !m.getDeclaringClass().getName().equals("java.lang.Enum");
+               && !methodName.equals("getHandler") && !methodName.equals("getClass") && !m.getDeclaringClass().getName().equals("java.lang.Enum");
    }
 
    static boolean isSetter(final Method m) {
       final String methodName = m.getName();
-      return methodName.startsWith("set") && ! isTransient(m);
+      return methodName.startsWith("set") && ! isTransient(m) && !methodName.equals("setHandler");
    }
 
    static boolean isTransient(Class clazz, String fieldName) {
@@ -39,7 +53,11 @@ class ReflectionUtils {
        try {
            f = clazz.getDeclaredField(fieldName);
        } catch (NoSuchFieldException e) {
-           return true;
+           try {
+               f = clazz.getSuperclass().getDeclaredField(fieldName);
+           } catch (NoSuchFieldException e1) {
+               return true;
+           }
        }
        return f.getAnnotation(Transient.class) != null;
    }
@@ -60,10 +78,41 @@ class ReflectionUtils {
    
    static <T> T mapDBOToJavaObject(final Class<T> clazz, final BasicDBObject dbo) throws MappingException {
        String fieldName = null;
+       Object newInstance;
 
        try {
            final Method[] methodDescriptors = clazz.getMethods();
-           final T newInstance = clazz.newInstance();
+           if (ProxyObject.class.isAssignableFrom(clazz)) {
+               newInstance = clazz.newInstance();
+           } else {
+               ProxyFactory factory = new ProxyFactory();
+               factory.setSuperclass(clazz);
+               newInstance = factory.createClass().newInstance();
+
+               MethodHandler handler = new MethodHandler() {
+                   public Object invoke(Object self, Method overridden, Method forwarder,
+                                        Object[] args) throws Throwable {
+                       final Reference reference = overridden.getAnnotation(Reference.class);
+                       if (reference != null && reference.loadType().equals(LoadType.LAZY)) {
+                           String fieldName = ReflectionUtils.getFieldName(overridden);
+                           final ObjectId oid = (ObjectId) dbo.get(fieldName);
+
+                           if (cm.getCache("ObjectIds").isKeyInCache(oid)) {
+                               Element el = cm.getCache("ObjectIds").get(oid);
+                               return el.getObjectValue();
+                           } else {
+                               EntityManager em = new EntityManager();
+                               final Object o = em.find(overridden.getReturnType(), oid);
+                               cm.getCache("ObjectIds").put(new Element(oid, o));
+                               return o;
+                           }
+                       }
+                       return forwarder.invoke(self, args);
+                   }
+               };
+
+               ((ProxyObject) newInstance).setHandler(handler);
+           }
 
            for (final Method md : methodDescriptors) {
                if (isSetter(md)) {
@@ -93,13 +142,21 @@ class ReflectionUtils {
                            if (dbo.get(fieldName) instanceof BasicDBObject) {
                                final Object obj = mapDBOToJavaObject(parameterClazz, (BasicDBObject) dbo.get(fieldName));
                                md.invoke(newInstance, obj);
-                           } else if (dbo.get(fieldName) instanceof ObjectId) {
-                               final ObjectId o = (ObjectId) dbo.get(fieldName);
-                               if (o != null) {
-                                   List<ObjectId> list = new ArrayList<ObjectId>();
-                                   list.add(o);
-                                   final EntityCursor find = new EntityManager().find(parameterClazz, list);
-                                   md.invoke(newInstance, find.nextEntity());
+                           } else {
+                               if (dbo.get(fieldName) instanceof ObjectId) {
+                                   // check if object id should be eagerly loaded
+                                   Method getter = getGetter(md);
+                                   final Reference annotation = getter.getAnnotation(Reference.class);
+
+                                   if (annotation != null && annotation.loadType().equals(LoadType.EAGER)) {
+                                       final ObjectId o = (ObjectId) dbo.get(fieldName);
+                                       if (o != null) {
+                                           List<ObjectId> list = new ArrayList<ObjectId>();
+                                           list.add(o);
+                                           final EntityCursor find = new EntityManager().find(parameterClazz, list);
+                                           md.invoke(newInstance, find.nextEntity());
+                                       }
+                                   }
                                }
                            }
                        }
@@ -107,18 +164,28 @@ class ReflectionUtils {
                }
            }
 
-           return newInstance;
+           return (T)newInstance;
        } catch (IllegalAccessException e) {
-           throw new MappingException(clazz.getName(), fieldName, e);
+           throw new MappingException(fieldName, clazz, e);
        } catch (InstantiationException e) {
-           throw new MappingException(clazz.getName(), e);
+           throw new MappingException(clazz, e);
        } catch (InvocationTargetException e) {
-           throw new MappingException(clazz.getName(), fieldName, e);
+           throw new MappingException(fieldName, clazz,  e);
        } catch (IllegalArgumentException e) {
-           throw new MappingException(clazz.getName(), fieldName, e);
+           throw new MappingException(fieldName, clazz,  e);
        }
    }
-   
+
+   static Method getGetter(Method setter) {
+       String getterName = setter.getName().replaceFirst("s", "g");
+
+       try {
+           return setter.getDeclaringClass().getMethod(getterName, null);
+       } catch (NoSuchMethodException e) {
+           throw new MappingException("Could not find getter method " + getterName + " corresponding to setter " + setter.getName(), e);
+       }
+   }
+
    static List mapDBListToJavaList(final BasicDBList list) throws MappingException {
 	   final List retList = new ArrayList();
 	   final Iterator iter = list.iterator();
@@ -136,7 +203,7 @@ class ReflectionUtils {
 		       retList.add(obj.toString());
 		   }
 	   }
-	   
+
 	   return retList;
    }
 
@@ -153,7 +220,11 @@ class ReflectionUtils {
                dbo.add(obj);
            } else {
                BasicDBObject listMemberDBO = mapJavaObjectToDBO(obj);
-               listMemberDBO.put(TYPE_FIELD, obj.getClass().getName());
+               if (ProxyObject.class.isAssignableFrom(obj.getClass())) {
+                   listMemberDBO.put(TYPE_FIELD, obj.getClass().getSuperclass().getName());
+               } else {
+                   listMemberDBO.put(TYPE_FIELD, obj.getClass().getName());
+               }
                dbo.add(listMemberDBO);
            }
        }
@@ -175,7 +246,7 @@ class ReflectionUtils {
                    try {
                        val = md.invoke(obj, (Object[]) null);
                    } catch (Exception e) {
-                       throw new MappingException(fieldName, obj.getClass().getName(), e);
+                       throw new MappingException(fieldName, obj.getClass(), e);
                    }
 
                    final Class<?> parameterClazz = md.getReturnType();
@@ -185,7 +256,7 @@ class ReflectionUtils {
                            final BasicDBList listDBO = ReflectionUtils.mapJavaListToDBList((List) val);
                            dbo.put(fieldName, listDBO);
                        } catch (Exception e) {
-                           throw new MappingException(fieldName, obj.getClass().getName(), e);
+                           throw new MappingException(fieldName, obj.getClass(), e);
                        }
                    } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
                        if (val != null) {
@@ -207,7 +278,23 @@ class ReflectionUtils {
 	   return dbo;
    }
    
-   public static String mapClassNameToCollectionName(final Class clazz) {
-       return clazz.getSimpleName().toLowerCase();
+   public static String mapClassNameToCollectionName(Class clazz) {
+       if (ProxyObject.class.isAssignableFrom(clazz)) {
+           clazz = clazz.getSuperclass();
+       }
+
+       Collection annotation = (Collection)clazz.getAnnotation(Collection.class);
+
+       String userSpecifiedName = annotation.name();
+
+       return userSpecifiedName.isEmpty() ? clazz.getSimpleName() : userSpecifiedName;
+   }
+
+   public static boolean isCollection(Class clazz) {
+       if (ProxyObject.class.isAssignableFrom(clazz)) {
+           return clazz.getSuperclass().getAnnotation(Collection.class) != null;
+       } else {
+           return clazz.getAnnotation(Collection.class) != null;
+       }
    }
 }

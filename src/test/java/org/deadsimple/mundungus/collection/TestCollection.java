@@ -4,7 +4,10 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.bson.types.ObjectId;
+import org.deadsimple.mundungus.EntityManager;
 import org.deadsimple.mundungus.annotations.Collection;
+import org.deadsimple.mundungus.annotations.LoadType;
+import org.deadsimple.mundungus.annotations.Reference;
 import org.deadsimple.mundungus.annotations.Transient;
 
 import java.util.ArrayList;
@@ -21,6 +24,10 @@ public class TestCollection {
     ObjectId reference;
     
     InnerTestCollection collection;
+
+    public InnerTestCollection proxyCollection;
+
+    public InnerTestCollection lazyProxyCollection;
 
     List<InnerTestCollection> complexListField;
 
@@ -87,6 +94,24 @@ public class TestCollection {
         this.objIntField = objIntField;
     }
 
+    @Reference(loadType= LoadType.EAGER)
+    public InnerTestCollection getProxyCollection() {
+        return proxyCollection;
+    }
+
+    public void setProxyCollection(InnerTestCollection proxyCollection) {
+        this.proxyCollection = proxyCollection;
+    }
+
+    @Reference(loadType= LoadType.LAZY)
+    public InnerTestCollection getLazyProxyCollection() {
+        return proxyCollection;
+    }
+
+    public void setLazyProxyCollection(InnerTestCollection proxyCollection) {
+        this.lazyProxyCollection = proxyCollection;
+    }
+
     public List<InnerTestCollection> getComplexListField() {
         return complexListField;
     }
@@ -145,6 +170,18 @@ public class TestCollection {
 
         dbo.put("collection", innerCollection);
         dbo.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+
+        InnerTestCollection eagerProxy = new InnerTestCollection();
+        eagerProxy.setTestField("proxy!");
+
+        InnerTestCollection lazyProxy = new InnerTestCollection();
+        lazyProxy.setTestField("lazy proxy!");
+
+        EntityManager em = new EntityManager();
+        ObjectId persistedId = em.persist(eagerProxy);
+        ObjectId persistedLazyId = em.persist(lazyProxy);
+        dbo.put("proxyCollection", persistedId);
+        dbo.put("lazyProxyCollection", persistedLazyId);
 
         return dbo;
     }

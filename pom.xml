@@ -14,6 +14,19 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.16</version>
+        <configuration>
+          <reuseForks>false</reuseForks>
+          <forkCount>1</forkCount>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -36,5 +49,17 @@
       <artifactId>commons-lang3</artifactId>
       <version>3.4</version>
     </dependency>
+    <dependency>
+      <groupId>javassist</groupId>
+      <artifactId>javassist</artifactId>
+      <version>3.12.1.GA</version>
+    </dependency>
+    <dependency>
+      <groupId>net.sf.ehcache</groupId>
+      <artifactId>ehcache</artifactId>
+      <version>2.9.0</version>
+    </dependency>
+
   </dependencies>
+
 </project>

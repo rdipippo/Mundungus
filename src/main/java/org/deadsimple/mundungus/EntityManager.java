@@ -2,6 +2,7 @@ package org.deadsimple.mundungus;
 
 import com.mongodb.*;
 import com.mongodb.util.JSON;
+import javassist.util.proxy.ProxyObject;
 import org.bson.types.ObjectId;
 import org.deadsimple.mundungus.annotations.Collection;
 import org.deadsimple.mundungus.annotations.MapKey;
@@ -73,8 +74,7 @@ public class EntityManager {
 	public ObjectId persist(final Object obj) {
 	    final BasicDBObject dbo;
 
-        final Collection annotation = obj.getClass().getAnnotation(Collection.class);
-        if (annotation == null) {
+       if (! ReflectionUtils.isCollection(obj.getClass())) {
             throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", obj.getClass().getSimpleName()));
         }
 
@@ -118,12 +118,11 @@ public class EntityManager {
 		final Class<T> searchInstanceClass = (Class<T>)searchInstance.getClass();
 		DBCollection collection = null;
 
-		final Collection annotation = searchInstanceClass.getAnnotation(Collection.class);
-		if (annotation != null) {
-			collection = db.getCollection(ReflectionUtils.mapClassNameToCollectionName(searchInstanceClass));
-		} else {
-		    throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", searchInstance.getClass().getSimpleName()));
-		}
+        if (! ReflectionUtils.isCollection(searchInstance.getClass())) {
+            throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", searchInstance.getClass().getSimpleName()));
+        }
+
+		collection = db.getCollection(ReflectionUtils.mapClassNameToCollectionName(searchInstanceClass));
 
         BasicDBObject dbo = null;
 
@@ -140,8 +139,7 @@ public class EntityManager {
 	}
 	
 	public <T> EntityCursor<T> findAll(final Class<T> clazz) {
-	    final Collection annotation = clazz.getAnnotation(Collection.class);
-        if (annotation != null) {
+        if (ReflectionUtils.isCollection(clazz)) {
             final DBCollection collection = this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz));
             return new EntityCursor<T>(collection.find(), clazz);
         }
@@ -151,9 +149,8 @@ public class EntityManager {
 	
 	public <S, T> Map<S, T> mapAll(final Class<T> clazz) {
 	    final HashMap<S, T> map = new HashMap<S, T>();
-	    final Collection annotation = clazz.getAnnotation(Collection.class);
 
-        if (annotation != null) {
+        if (ReflectionUtils.isCollection(clazz)) {
             final Field [] fields = clazz.getFields();
             Field keyField = null;
             
@@ -171,7 +168,12 @@ public class EntityManager {
                 final T next = cursor.nextEntity();
                 Field field;
                 try {
-                    field = next.getClass().getDeclaredField(keyField == null ?  "id" : keyField.getName());
+                    if (ProxyObject.class.isAssignableFrom(next.getClass())) {
+                        field = next.getClass().getSuperclass().getDeclaredField(keyField == null ?  "id" : keyField.getName());
+                    } else {
+                        field = next.getClass().getDeclaredField(keyField == null ?  "id" : keyField.getName());
+                    }
+
                     field.setAccessible(true);
                     final S key = (S)field.get(next);
                     map.put(key, next);
@@ -191,8 +193,7 @@ public class EntityManager {
 	}
 
 	public <T> EntityCursor<T> find(final Class<T> clazz, final List<ObjectId> ids) {
-		final Collection annotation = clazz.getAnnotation(Collection.class);
-		if (annotation != null) {
+		if (ReflectionUtils.isCollection(clazz)) {
 			final DBCollection collection = this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz));
 			final QueryBuilder qb = QueryBuilder.start(ID_FIELD_NAME);
 			qb.in(ids);
@@ -215,8 +216,7 @@ public class EntityManager {
 	}
 	
 	public <T> EntityCursor<T> find(final Class<T> clazz, final String jsonQuery) {
-	    final Collection annotation = clazz.getAnnotation(Collection.class);
-        if (annotation != null) {
+        if (ReflectionUtils.isCollection(clazz)) {
             final DBCollection collection = this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz));
             final DBObject queryObj = (DBObject)JSON.parse(jsonQuery);
             
@@ -228,9 +228,8 @@ public class EntityManager {
 	
 	public void remove(final Object document) {
 	    final Class<?> clazz = document.getClass();
-	    final Collection annotation = clazz.getAnnotation(Collection.class);
-	    
-	    if (annotation != null) {
+
+	    if (ReflectionUtils.isCollection(clazz)) {
             final BasicDBObject objectToRemove = ReflectionUtils.mapJavaObjectToDBO(document);
             this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz)).remove(objectToRemove);
         }

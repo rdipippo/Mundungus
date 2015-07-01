@@ -1,41 +1,16 @@
 package org.deadsimple.mundungus;
 
-import java.util.Map;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.bson.types.ObjectId;
-import org.deadsimple.mundungus.collection.InnerTestCollection;
-import org.deadsimple.mundungus.collection.TestCollection;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.bson.types.ObjectId;
+import org.deadsimple.mundungus.collection.TestCollection;
+import org.junit.Assert;
+import org.junit.Test;
 
-public class EntityManagerTest {
-   EntityManager em = new EntityManager();
+import java.util.Map;
 
-   @Rule
-   public ExpectedException thrown = ExpectedException.none();
-   
-   @BeforeClass
-   public static void beforeClass() {
-       EmbeddedMongo.start();
-   }
-   
-   @Before
-   public void beforeEachTest() {
-       this.em.getCollection(TestCollection.class).remove(new BasicDBObject());
-       this.em.getCollection(InnerTestCollection.class).remove(new BasicDBObject());
-   }
-   
-   @AfterClass
-   public static void afterClass() {
-       EmbeddedMongo.stop();
-   }
+public class EntityManagerTest extends MongoTest {
 
    @Test
    public void testGetDbConnection() {
@@ -116,7 +91,7 @@ public class EntityManagerTest {
        
        final TestCollection finder = new TestCollection();
        finder.setTestField(tc.getTestField());
-       
+
        EntityCursor<TestCollection> entityCursor = this.em.get(finder);
        final TestCollection fetchedTc = entityCursor.nextEntity();
        this.em.remove(fetchedTc);
