@@ -12,18 +12,12 @@ public class EntityCursor<T> {
     
    private Cursor cursor;
         
-   public EntityCursor(final Cursor cursorArg, final Class<T> clazzArg) {
+   public EntityCursor(final Cursor cursorArg) {
       this.cursor = cursorArg;
-
-      if (ProxyObject.class.isAssignableFrom(clazzArg)) {
-         this.clazz = (Class<T>)clazzArg.getSuperclass();
-      } else {
-         this.clazz = clazzArg;
-      }
    }
 
    public T nextEntity() throws MappingException {
-       return ReflectionUtils.mapDBOToJavaObject(this.clazz, (BasicDBObject) this.cursor.next());
+       return ReflectionUtils.mapDBOToJavaObject((BasicDBObject) this.cursor.next());
    }
    
    public boolean hasNext() {

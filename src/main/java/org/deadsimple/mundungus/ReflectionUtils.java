@@ -76,9 +76,18 @@ class ReflectionUtils {
       }
    }
    
-   static <T> T mapDBOToJavaObject(final Class<T> clazz, final BasicDBObject dbo) throws MappingException {
+   static <T> T mapDBOToJavaObject(final BasicDBObject dbo) throws MappingException {
        String fieldName = null;
        Object newInstance;
+
+       String type = (String)dbo.get(TYPE_FIELD);
+       Class<?> clazz = null;
+
+       try {
+           clazz = Class.forName(type);
+       } catch (ClassNotFoundException e) {
+           e.printStackTrace();
+       }
 
        try {
            final Method[] methodDescriptors = clazz.getMethods();
@@ -131,7 +140,6 @@ class ReflectionUtils {
                                md.invoke(newInstance, mapDBListToJavaList((BasicDBList) dbo.get(fieldName)));
                            }
                        } else if (ClassUtils.isPrimitiveOrWrapper(parameterClazz) || parameterClazz.equals(String.class) || parameterClazz.equals(ObjectId.class)) {
-
                            md.invoke(newInstance, dbo.get(fieldName));
                        } else if (parameterClazz.isEnum()) {
                            final BasicDBObject enumDBO = (BasicDBObject) dbo.get(fieldName);
@@ -140,7 +148,9 @@ class ReflectionUtils {
                            }
                        } else {
                            if (dbo.get(fieldName) instanceof BasicDBObject) {
-                               final Object obj = mapDBOToJavaObject(parameterClazz, (BasicDBObject) dbo.get(fieldName));
+                               BasicDBObject subDBO = (BasicDBObject)dbo.get(fieldName);
+
+                               final Object obj = mapDBOToJavaObject((BasicDBObject) dbo.get(fieldName));
                                md.invoke(newInstance, obj);
                            } else {
                                if (dbo.get(fieldName) instanceof ObjectId) {
@@ -192,13 +202,7 @@ class ReflectionUtils {
 	   while(iter.hasNext()) {
 		   final Object obj = iter.next();
 		   if (obj instanceof BasicDBObject) {
-               String type = (String) ((BasicDBObject) obj).get(TYPE_FIELD);
-               try {
-                   Class<?> aClass = Class.forName(type);
-                   retList.add(mapDBOToJavaObject(aClass, (BasicDBObject)obj));
-               } catch (ClassNotFoundException e) {
-                   e.printStackTrace();
-               }
+               retList.add(mapDBOToJavaObject((BasicDBObject)obj));
 		   } else {
 		       retList.add(obj.toString());
 		   }
@@ -225,6 +229,7 @@ class ReflectionUtils {
                } else {
                    listMemberDBO.put(TYPE_FIELD, obj.getClass().getName());
                }
+
                dbo.add(listMemberDBO);
            }
        }
@@ -251,7 +256,23 @@ class ReflectionUtils {
 
                    final Class<?> parameterClazz = md.getReturnType();
 
-                   if (val instanceof List) {
+                   if (md.getAnnotation(Reference.class) != null && val != null) {
+                       Method idGetter = null;
+                       try {
+                           idGetter = val.getClass().getMethod("getId");
+                           ObjectId id = (ObjectId)idGetter.invoke(val, null);
+
+                           if (id != null) {
+                               dbo.put(fieldName, id);
+                           }
+                       } catch (NoSuchMethodException e) {
+                          throw new MappingException("No getId method on object of type " + obj.getClass().getSimpleName(), e);
+                       } catch (InvocationTargetException e) {
+                           e.printStackTrace();
+                       } catch (IllegalAccessException e) {
+                           e.printStackTrace();
+                       }
+                   } else if (val instanceof List) {
                        try {
                            final BasicDBList listDBO = ReflectionUtils.mapJavaListToDBList((List) val);
                            dbo.put(fieldName, listDBO);
@@ -275,11 +296,21 @@ class ReflectionUtils {
            }
 	   }
 
+       if (ProxyObject.class.isAssignableFrom(obj.getClass())) {
+           dbo.put(TYPE_FIELD, obj.getClass().getSuperclass().getName());
+       } else {
+           dbo.put(TYPE_FIELD, obj.getClass().getName());
+       }
+
 	   return dbo;
    }
    
    public static String mapClassNameToCollectionName(Class clazz) {
        if (ProxyObject.class.isAssignableFrom(clazz)) {
+           clazz = clazz.getSuperclass();
+       }
+
+       if (clazz.getAnnotation(Collection.class) == null) {
            clazz = clazz.getSuperclass();
        }
 

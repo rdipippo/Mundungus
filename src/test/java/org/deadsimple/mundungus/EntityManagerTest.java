@@ -94,7 +94,7 @@ public class EntityManagerTest extends MongoTest {
 
        EntityCursor<TestCollection> entityCursor = this.em.get(finder);
        final TestCollection fetchedTc = entityCursor.nextEntity();
-       this.em.remove(fetchedTc);
+       this.em.remove(finder);
               
        entityCursor = this.em.get(finder);
        Assert.assertFalse(entityCursor.hasNext());

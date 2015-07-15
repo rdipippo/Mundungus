@@ -159,6 +159,7 @@ public class TestCollection {
         innerCollection.put("testField", "innerTest");
         innerCollection.put("testListField", dbl);
         innerCollection.put("_id", new ObjectId("abcdeabcdeabcdeabcdeabcd"));
+        innerCollection.put("_type", InnerTestCollection.class.getName());
 
         BasicDBObject innerCollectionListMember = new BasicDBObject(innerCollection);
         innerCollectionListMember.put("_type", InnerTestCollection.class.getName());
@@ -182,7 +183,7 @@ public class TestCollection {
         ObjectId persistedLazyId = em.persist(lazyProxy);
         dbo.put("proxyCollection", persistedId);
         dbo.put("lazyProxyCollection", persistedLazyId);
-
+        dbo.put("_type", TestCollection.class.getName());
         return dbo;
     }
 
@@ -203,12 +204,18 @@ public class TestCollection {
         itc.setTestListField(tc.getTestListField());
         itc.setId(new ObjectId("abcdeabcdeabcdeabcdeabcd"));
 
+        EntityManager em = new EntityManager();
+        em.persist(itc);
+
         tc.setEnumeratedValue(TestEnum.VALUE1);
         
         tc.setCollection(itc);
         List<InnerTestCollection> itcList = new ArrayList<InnerTestCollection>();
         itcList.add(itc);
         tc.setComplexListField(itcList);
+
+        tc.setLazyProxyCollection(itc);
+        tc.setProxyCollection(itc);
 
         tc.setTransientField("This field should not be stored in the database.");
         return tc;

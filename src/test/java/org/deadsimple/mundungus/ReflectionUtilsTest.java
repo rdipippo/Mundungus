@@ -57,7 +57,7 @@ public class ReflectionUtilsTest extends MongoTest {
     @Test
     public void testMapToJava() throws Exception {
         BasicDBObject dbo = TestCollection.generateDBO();
-        final TestCollection tc = ReflectionUtils.mapDBOToJavaObject(TestCollection.class, dbo);
+        final TestCollection tc = ReflectionUtils.mapDBOToJavaObject(dbo);
         Assert.assertEquals("test", tc.getTestField());
         Assert.assertEquals("abcdeabcdeabcdeabcdeabcd", tc.getId().toString());
         Assert.assertEquals("ffffffffffffffffffffffff", tc.getReference().toString());
@@ -87,7 +87,8 @@ public class ReflectionUtilsTest extends MongoTest {
     @Test
     public void testMapToJavaNull() throws NoSuchFieldException, InstantiationException, IllegalAccessException, InvocationTargetException {
         BasicDBObject bdo = new BasicDBObject();
-        TestCollection testCollection = ReflectionUtils.mapDBOToJavaObject(TestCollection.class, bdo);
+        bdo.put("_type", TestCollection.class.getName());
+        TestCollection testCollection = ReflectionUtils.mapDBOToJavaObject(bdo);
         Assert.assertNotNull(testCollection);
         Assert.assertNull(testCollection.getEnumeratedValue());
         Assert.assertNull(testCollection.getTestField());
@@ -103,7 +104,8 @@ public class ReflectionUtilsTest extends MongoTest {
         TestCollection tc = new TestCollection();
         BasicDBObject bdo = ReflectionUtils.mapJavaObjectToDBO(tc);
         Assert.assertNotNull(bdo);
-        Assert.assertEquals(0, bdo.size());
+        // only field should be the _type field.
+        Assert.assertEquals(1, bdo.size());
     }
 
     @Test
@@ -114,7 +116,7 @@ public class ReflectionUtilsTest extends MongoTest {
     }
 
     @Test
-    public void testMapClassNameToCollectionName() throws Exception {
+    public void testMapClassNameToCollectionCustomName() throws Exception {
         ClassPool cp = ClassPool.getDefault();
         CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection");
         ClassFile classFile = ctClass.getClassFile();
@@ -128,8 +130,36 @@ public class ReflectionUtilsTest extends MongoTest {
 
         final String s = ReflectionUtils.mapClassNameToCollectionName(aClass);
         Assert.assertEquals("proxy!", s);
+    }
 
+    @Test
+    public void testMapClassNameToCollectionDefaultName() throws Exception {
         final String s2 = ReflectionUtils.mapClassNameToCollectionName(TestCollection.class);
         Assert.assertEquals("TestCollection", s2);
+    }
+
+    @Test
+    public void testMapClassNameToCollectionAnnotationOnSuperClass() throws Exception {
+        ClassPool cp = ClassPool.getDefault();
+        CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection2", cp.get("org.deadsimple.mundungus.collection.TestCollection"));
+        ClassFile classFile = ctClass.getClassFile();
+        final Class aClass = cp.toClass(ctClass);
+
+        final String s = ReflectionUtils.mapClassNameToCollectionName(aClass);
+        Assert.assertEquals("TestCollection", s);
+    }
+
+    @Test
+    public void testTypeField() throws Exception {
+        ClassPool cp = ClassPool.getDefault();
+        CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection3", cp.get("org.deadsimple.mundungus.collection.TestCollection"));
+        ClassFile classFile = ctClass.getClassFile();
+        final Class aClass = cp.toClass(ctClass);
+
+        final Object o = aClass.newInstance();
+        final BasicDBObject dbo = ReflectionUtils.mapJavaObjectToDBO(o);
+        Assert.assertEquals("org.deadsimple.mundungus.collection.ProxyTestCollection3", dbo.get("_type"));
+        final TestCollection testCollection = ReflectionUtils.mapDBOToJavaObject(dbo);
+        Assert.assertEquals("org.deadsimple.mundungus.collection.ProxyTestCollection3", testCollection.getClass().getSuperclass().getName());
     }
 }
