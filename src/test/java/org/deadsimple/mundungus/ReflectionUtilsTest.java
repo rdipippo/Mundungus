@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ReflectionUtilsTest extends MongoTest {
+    // TODO we should have a version of this test that takes a proxy.
+    // TODO we should split this into individual tests.
     @Test
     public void testMapToDBO() throws Exception {
         final TestCollection tc = TestCollection.generateTestCollection();
@@ -48,12 +50,18 @@ public class ReflectionUtilsTest extends MongoTest {
         Assert.assertEquals(1, complexList.size());
         Assert.assertEquals(innerDbo.get("_id"), ((BasicDBObject)complexList.get(0)).get("_id"));
         Assert.assertEquals(innerDbo.get("testListField"), ((BasicDBObject)complexList.get(0)).get("testListField"));
-        Assert.assertEquals(innerDbo.get("testField"), ((BasicDBObject)complexList.get(0)).get("testField"));
-        Assert.assertEquals("org.deadsimple.mundungus.collection.InnerTestCollection",  ((BasicDBObject)complexList.get(0)).get("_type"));
+        Assert.assertEquals(innerDbo.get("testField"), ((BasicDBObject) complexList.get(0)).get("testField"));
+        Assert.assertEquals("org.deadsimple.mundungus.collection.InnerTestCollection", ((BasicDBObject) complexList.get(0)).get("_type"));
 
+        // Proxies should be stored inthe db as ObjectIds.
+        Assert.assertTrue(dbo.get("proxyCollection") instanceof ObjectId);
+        Assert.assertTrue(dbo.get("lazyProxyCollection") instanceof ObjectId);
+
+        // Transient field should not be stored.
         Assert.assertNull(dbo.get("transientField"));
     }
-    
+
+    // TODO we should split this into individual tests.
     @Test
     public void testMapToJava() throws Exception {
         BasicDBObject dbo = TestCollection.generateDBO();

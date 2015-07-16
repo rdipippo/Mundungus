@@ -238,7 +238,14 @@ class ReflectionUtils {
    }
 
    public static BasicDBObject mapJavaObjectToDBO(final Object obj) throws MappingException {
-	   final Method[] methodDescriptors = obj.getClass().getMethods();
+	   Method[] methodDescriptors = null;
+
+       if (obj instanceof ProxyObject) {
+           methodDescriptors = obj.getClass().getSuperclass().getMethods();
+       } else {
+           methodDescriptors = obj.getClass().getMethods();
+       }
+
 	   final BasicDBObject dbo = new BasicDBObject();
 	   String fieldName = null;
        Object val = null;
