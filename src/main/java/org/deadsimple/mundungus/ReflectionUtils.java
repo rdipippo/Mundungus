@@ -28,6 +28,8 @@ class ReflectionUtils {
 
    private static final CacheManager cm = CacheManager.getInstance();
 
+   // TODO since this class is static, cache will be shared by all EntityManagers.
+   // Probably not what we want, right?
    static {
        cm.addCache("ObjectIds");
    }
@@ -42,24 +44,6 @@ class ReflectionUtils {
    static boolean isSetter(final Method m) {
       final String methodName = m.getName();
       return methodName.startsWith("set") && ! isTransient(m) && !methodName.equals("setHandler");
-   }
-
-   static boolean isTransient(Class clazz, String fieldName) {
-       if (fieldName.equals(EntityManager.ID_FIELD_NAME)) {
-           return false;
-       }
-
-       Field f = null;
-       try {
-           f = clazz.getDeclaredField(fieldName);
-       } catch (NoSuchFieldException e) {
-           try {
-               f = clazz.getSuperclass().getDeclaredField(fieldName);
-           } catch (NoSuchFieldException e1) {
-               return true;
-           }
-       }
-       return f.getAnnotation(Transient.class) != null;
    }
 
    static boolean isTransient(Method m) {
@@ -127,7 +111,7 @@ class ReflectionUtils {
                if (isSetter(md)) {
                    fieldName = ReflectionUtils.getFieldName(md);
 
-                   if (! ReflectionUtils.isTransient(clazz, fieldName)) {
+                   if (! ReflectionUtils.isTransient(getGetter(md))) {
                        final Class<?> parameterClazz = md.getParameterTypes()[0];
 
                        if (fieldName.equals(EntityManager.ID_FIELD_NAME)) {
@@ -192,7 +176,13 @@ class ReflectionUtils {
        try {
            return setter.getDeclaringClass().getMethod(getterName, null);
        } catch (NoSuchMethodException e) {
-           throw new MappingException("Could not find getter method " + getterName + " corresponding to setter " + setter.getName(), e);
+           getterName = setter.getName().replaceFirst("set", "is");
+
+           try {
+               return setter.getDeclaringClass().getMethod(getterName, null);
+           } catch (NoSuchMethodException e2) {
+               throw new MappingException("Could not find getter method corresponding to setter " + setter.getName(), e);
+           }
        }
    }
 
@@ -254,7 +244,7 @@ class ReflectionUtils {
 		   if (ReflectionUtils.isGetter(md)) {
 			   fieldName = ReflectionUtils.getFieldName(md);
 
-               if (! ReflectionUtils.isTransient(obj.getClass(), fieldName)) {
+               if (! ReflectionUtils.isTransient(md)) {
                    try {
                        val = md.invoke(obj, (Object[]) null);
                    } catch (Exception e) {

@@ -2,8 +2,7 @@ package org.deadsimple.mundungus;
 
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
-import javassist.ClassPool;
-import javassist.CtClass;
+import javassist.*;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ClassFile;
 import javassist.bytecode.ConstPool;
@@ -23,6 +22,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+
+import static javassist.CtNewConstructor.*;
 
 public class ReflectionUtilsTest extends MongoTest {
     // TODO we should have a version of this test that takes a proxy.
@@ -124,6 +125,13 @@ public class ReflectionUtilsTest extends MongoTest {
     }
 
     @Test
+    public void testIsTransientBooleanGetter() throws Exception {
+        Method m = TestCollection.class.getMethod("setBooleanTransientField", Boolean.class);
+        Method getter = ReflectionUtils.getGetter(m);
+        Assert.assertEquals("isBooleanTransientField", getter.getName());
+    }
+
+    @Test
     public void testMapClassNameToCollectionCustomName() throws Exception {
         ClassPool cp = ClassPool.getDefault();
         CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection");
@@ -169,5 +177,27 @@ public class ReflectionUtilsTest extends MongoTest {
         Assert.assertEquals("org.deadsimple.mundungus.collection.ProxyTestCollection3", dbo.get("_type"));
         final TestCollection testCollection = ReflectionUtils.mapDBOToJavaObject(dbo);
         Assert.assertEquals("org.deadsimple.mundungus.collection.ProxyTestCollection3", testCollection.getClass().getSuperclass().getName());
+    }
+
+    @Test
+    public void testIsTransientOnSuperClass() throws Exception {
+        ClassPool cp = ClassPool.getDefault();
+
+        CtClass ctClass = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection4", cp.get("org.deadsimple.mundungus.collection.TestCollection"));
+        ctClass.addConstructor(defaultConstructor(ctClass));
+        CtClass ctClass2 = cp.makeClass("org.deadsimple.mundungus.collection.ProxyTestCollection5");
+        ctClass2.setSuperclass(cp.getCtClass("org.deadsimple.mundungus.collection.ProxyTestCollection4"));
+        final Class aClass = cp.toClass(ctClass);
+        ClassPool.getDefault().insertClassPath(new ClassClassPath(aClass.getClass()));
+        final Class testClass = cp.toClass(ctClass2);
+
+        final Object o = testClass.newInstance();
+        Assert.assertTrue(ReflectionUtils.isTransient(o.getClass().getMethod("getNothing")));
+    }
+
+    @Test
+    public void testIsTransientBooleanField() throws Exception {
+        Method m = TestCollection.class.getMethod("isBooleanTransientField");
+        Assert.assertTrue(ReflectionUtils.isTransient(m));
     }
 }

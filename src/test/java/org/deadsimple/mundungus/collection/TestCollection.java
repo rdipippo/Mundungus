@@ -35,8 +35,9 @@ public class TestCollection {
 
     Integer objIntField;
 
-    @Transient
     String transientField;
+
+    boolean booleanTransientField;
 
     public ObjectId getId() {
         return this.id;
@@ -116,6 +117,7 @@ public class TestCollection {
         return complexListField;
     }
 
+    @Transient
     public String getTransientField() {
         return transientField;
     }
@@ -136,6 +138,15 @@ public class TestCollection {
 
     public void setComplexListField(List<InnerTestCollection> complexListField) {
         this.complexListField = complexListField;
+    }
+
+    @Transient
+    public boolean isBooleanTransientField() {
+        return booleanTransientField;
+    }
+
+    public void setBooleanTransientField(Boolean booleanTransientField) {
+        this.booleanTransientField = booleanTransientField;
     }
 
     public static BasicDBObject generateDBO() {
