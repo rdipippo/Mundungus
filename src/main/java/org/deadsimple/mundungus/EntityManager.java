@@ -144,7 +144,7 @@ public class EntityManager {
             return new EntityCursor<T>(collection.find());
         }
         
-        throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getClass().getSimpleName()));
+        throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getSimpleName()));
 	}
 	
 	public <S, T> Map<S, T> mapAll(final Class<T> clazz) {
@@ -200,7 +200,7 @@ public class EntityManager {
 			return new EntityCursor<T>(collection.find(qb.get()));
 		}
 
-		throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getClass().getSimpleName()));
+		throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getSimpleName()));
 	}
 	
 	public <T> T find(final Class<T> clazz, final ObjectId id) {
@@ -215,7 +215,7 @@ public class EntityManager {
         }
 	}
 	
-	public <T> EntityCursor<T> find(final Class<T> clazz, final String jsonQuery) {
+	public <T> EntityCursor<T> executeQuery(final Class<T> clazz, final String jsonQuery) {
         if (ReflectionUtils.isCollection(clazz)) {
             final DBCollection collection = this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz));
             final DBObject queryObj = (DBObject)JSON.parse(jsonQuery);
@@ -223,8 +223,17 @@ public class EntityManager {
             return new EntityCursor<T>(collection.find(queryObj));
         }
 
-        throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getClass().getSimpleName()));
+        throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getSimpleName()));
 	}
+
+    public <T> EntityCursor<T> executeQuery(final Class<T> clazz, final DBObject queryObj) {
+        if (ReflectionUtils.isCollection(clazz)) {
+            final DBCollection collection = this.getDbConnection().getCollection(ReflectionUtils.mapClassNameToCollectionName(clazz));
+            return new EntityCursor<T>(collection.find(queryObj));
+        }
+
+        throw new MappingException(MessageFormat.format("Class {0} is not mapped by Mundungus.", clazz.getSimpleName()));
+    }
 	
 	public void remove(final Object document) {
 	    final Class<?> clazz = document.getClass();

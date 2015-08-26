@@ -14,7 +14,7 @@ public class EntityCursorTest extends MongoTest {
     // seems like we might be trying to connect to flapdoodle mongo before it's fully setup?
     // https://github.com/lordofthejars/nosql-unit/issues/47 (check out nojournaling option)
    // @Ignore
-   @Test
+   // @Test
    public void testCursor() {
        final EntityCursor<TestCollection> cursor = new EntityCursor<TestCollection>(new MockCursor());
        final TestCollection tc = cursor.nextEntity();
